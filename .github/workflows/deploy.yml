@@ -63,8 +63,6 @@ jobs:
           
           # Go back to root
           cd ../../../../../
-
-          ls -lrt
           
           echo "Layer size:"
           du -sh lambda-layer
