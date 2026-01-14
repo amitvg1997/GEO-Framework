@@ -45,13 +45,15 @@ jobs:
       - name: Build Lambda Layer
         run: |
           mkdir -p lambda-layer/python/lib/python3.13/site-packages
+          
+          echo "Installing dependencies..."
           pip install -r requirements.txt \
             -t lambda-layer/python/lib/python3.13/site-packages/ \
             --no-cache-dir
           
+          echo "Cleaning up unnecessary files..."
           cd lambda-layer/python/lib/python3.13/site-packages/
           
-          # Remove unnecessary files to reduce size
           find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
           find . -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
           find . -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
@@ -59,16 +61,19 @@ jobs:
           find . -type f -name "*.pyc" -delete 2>/dev/null || true
           find . -type f -name "*.pyo" -delete 2>/dev/null || true
           
+          # Go back to root
           cd ../../../../
           
           echo "Layer size:"
-          du -sh lambda-layer/
+          du -sh lambda-layer
           
           cd lambda-layer
           zip -r ../geo-framework-layer.zip . -x "*.git*"
           cd ..
           
+          echo "Zipped layer size:"
           ls -lh geo-framework-layer.zip
+
 
       - name: Build Lambda package (code only)
         run: |
