@@ -22,6 +22,20 @@ jobs:
         with:
           python-version: "3.13"
 
+      - name: Validate requirements.txt
+        run: |
+          if [ ! -f requirements.txt ]; then
+            echo "ERROR: requirements.txt not found"
+            exit 1
+          fi
+
+      - name: Validate lambda_handler exists
+        run: |
+          if ! grep -q "def lambda_handler" app.py; then
+            echo "ERROR: lambda_handler function not found in app.py"
+            exit 1
+          fi
+
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -31,14 +45,57 @@ jobs:
       - name: Build Lambda package
         run: |
           mkdir -p package
-          pip install -r requirements.txt -t package
+          pip install -r requirements.txt -t package/
           cp app.py package/
           cp -r metrics package/
           cd package
-          zip -r ../geo-framework.zip .
+          zip -r ../geo-framework.zip . -x "*.git*" "*.pyc" "__pycache__/*"
+          cd ..
+          ls -lh geo-framework.zip
+
+      - name: Upload to S3
+        run: |
+          aws s3 cp geo-framework.zip \
+            s3://geo-framework-deployments-498747778884/geo-framework-${{ github.sha }}.zip \
+            --region eu-central-1
 
       - name: Deploy Lambda
         run: |
           aws lambda update-function-code \
             --function-name geo-framework-api \
-            --zip-file fileb://geo-framework.zip
+            --s3-bucket geo-framework-deployments-498747778884 \
+            --s3-key geo-framework-${{ github.sha }}.zip \
+            --region eu-central-1
+
+      - name: Wait for Lambda update
+        run: sleep 3
+
+      - name: Verify deployment
+        run: |
+          LAST_MODIFIED=$(aws lambda get-function-configuration \
+            --function-name geo-framework-api \
+            --query 'LastModified' \
+            --output text \
+            --region eu-central-1)
+          
+          echo "Lambda last modified: $LAST_MODIFIED"
+          
+          # Test invoke with test payload
+          aws lambda invoke \
+            --function-name geo-framework-api \
+            --payload '{"test": true}' \
+            /tmp/response.json \
+            --region eu-central-1
+          
+          cat /tmp/response.json
+
+      - name: Publish Lambda version
+        if: success()
+        run: |
+          VERSION=$(aws lambda publish-version \
+            --function-name geo-framework-api \
+            --query 'Version' \
+            --output text \
+            --region eu-central-1)
+          
+          echo "Published version: $VERSION"
