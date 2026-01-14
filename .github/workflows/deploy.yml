@@ -45,10 +45,29 @@ jobs:
       - name: Build Lambda Layer
         run: |
           mkdir -p lambda-layer/python/lib/python3.13/site-packages
-          pip install -r requirements.txt -t lambda-layer/python/lib/python3.13/site-packages/
+          pip install -r requirements.txt \
+            -t lambda-layer/python/lib/python3.13/site-packages/ \
+            --no-cache-dir
+          
+          cd lambda-layer/python/lib/python3.13/site-packages/
+          
+          # Remove unnecessary files to reduce size
+          find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+          find . -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
+          find . -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
+          find . -type d -name "docs" -exec rm -rf {} + 2>/dev/null || true
+          find . -type f -name "*.pyc" -delete 2>/dev/null || true
+          find . -type f -name "*.pyo" -delete 2>/dev/null || true
+          
+          cd ../../../../
+          
+          echo "Layer size:"
+          du -sh lambda-layer/
+          
           cd lambda-layer
-          zip -r ../geo-framework-layer.zip .
+          zip -r ../geo-framework-layer.zip . -x "*.git*"
           cd ..
+          
           ls -lh geo-framework-layer.zip
 
       - name: Build Lambda package (code only)
@@ -73,12 +92,6 @@ jobs:
             s3://geo-framework-deployments/geo-framework-${{ github.sha }}.zip \
             --region eu-central-1
 
-      - name: Upload Layer to S3
-        run: |
-          aws s3 cp geo-framework-layer.zip \
-            s3://geo-framework-deployments/geo-framework-layer-${{ github.sha }}.zip \
-            --region eu-central-1
-
       - name: Publish Lambda Layer
         run: |
           LAYER_VERSION=$(aws lambda publish-layer-version \
@@ -91,8 +104,6 @@ jobs:
           
           echo "Layer version: $LAYER_VERSION"
           echo "LAYER_ARN=arn:aws:lambda:eu-central-1:498747778884:layer:geo-framework-dependencies:$LAYER_VERSION" >> $GITHUB_ENV
-
-
 
       - name: Deploy Lambda Function
         run: |
