@@ -62,7 +62,7 @@ jobs:
           find . -type f -name "*.pyo" -delete 2>/dev/null || true
           
           # Go back to root
-          cd ../../../../
+          cd ../../../../../
 
           ls -lrt
           
