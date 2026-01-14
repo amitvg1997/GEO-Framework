@@ -14,7 +14,7 @@ env:
   AWS_ACCOUNT_ID: "498747778884"
   ECR_REPOSITORY: "geo-framework-api"
   IMAGE_TAG: "${{ github.sha }}"
-  LAMBDA_FUNCTION_NAME: "geo-framework-api"
+  LAMBDA_FUNCTION_NAME: "geo-framework-api-image"
 
 jobs:
   deploy:
