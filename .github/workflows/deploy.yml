@@ -12,7 +12,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::<AWS_ACCOUNT_ID>:role/GeoFrameworkGitHubOIDCRole
+          role-to-assume: arn:aws:iam::498747778884:role/GeoFrameworkGitHubOIDCRole
           aws-region: eu-central-1
 
       - name: Deploy Lambda
