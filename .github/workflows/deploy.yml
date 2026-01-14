@@ -56,14 +56,14 @@ jobs:
       - name: Upload to S3
         run: |
           aws s3 cp geo-framework.zip \
-            s3://geo-framework-deployments-498747778884/geo-framework-${{ github.sha }}.zip \
+            s3://geo-framework-deployments/geo-framework-${{ github.sha }}.zip \
             --region eu-central-1
 
       - name: Deploy Lambda
         run: |
           aws lambda update-function-code \
             --function-name geo-framework-api \
-            --s3-bucket geo-framework-deployments-498747778884 \
+            --s3-bucket geo-framework-deployments \
             --s3-key geo-framework-${{ github.sha }}.zip \
             --region eu-central-1
 
