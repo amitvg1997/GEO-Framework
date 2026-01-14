@@ -56,17 +56,11 @@ jobs:
 
       - name: Verify deployment
         run: |
-          aws lambda get-function-configuration \
-            --function-name $LAMBDA_FUNCTION_NAME \
-            --region $AWS_REGION
-
           aws lambda invoke \
             --function-name $LAMBDA_FUNCTION_NAME \
-            --payload '{
-              "content": "<html><body><h1>Test</h1><p>Hello world.</p></body></html>",
-              "url": null
-            }' \
+            --payload '{"content":"<html><body><h1>Test</h1><p>Hello world.</p></body></html>","url":null}' \
             /tmp/response.json \
             --region $AWS_REGION
 
           cat /tmp/response.json
+
