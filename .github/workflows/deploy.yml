@@ -54,5 +54,14 @@ jobs:
       - name: Wait for Lambda update
         run: sleep 10
 
+      - name: Deploy UI to S3
+        run: |
+          aws s3 cp index.html \
+            s3://geo-framework-ui/index.html \
+            --content-type text/html \
+            --cache-control "max-age=3600" \
+            --region eu-central-1
+
+
     
 
