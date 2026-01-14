@@ -1,3 +1,10 @@
+name: Deploy GEO Framework Lambda
+
+on:
+  push:
+    branches:
+      - main
+
 permissions:
   id-token: write
   contents: read
@@ -5,23 +12,33 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
       - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::498747778884:role/GeoFrameworkGitHubOIDCRole
           aws-region: eu-central-1
 
-      - name: Deploy Lambda
+      - name: Build Lambda package
         run: |
+          mkdir -p package
           pip install -r requirements.txt -t package
           cp app.py package/
           cp -r metrics package/
           cd package
           zip -r ../geo-framework.zip .
+
+      - name: Deploy Lambda
+        run: |
           aws lambda update-function-code \
-              --function-name geo-framework-api \
-              --zip-file fileb://geo-framework.zip
+            --function-name geo-framework-api \
+            --zip-file fileb://geo-framework.zip
