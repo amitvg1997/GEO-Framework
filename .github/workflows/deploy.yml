@@ -42,10 +42,18 @@ jobs:
           role-to-assume: arn:aws:iam::498747778884:role/GeoFrameworkGitHubOIDCRole
           aws-region: eu-central-1
 
-      - name: Build Lambda package
+      - name: Build Lambda Layer
+        run: |
+          mkdir -p lambda-layer/python/lib/python3.13/site-packages
+          pip install -r requirements.txt -t lambda-layer/python/lib/python3.13/site-packages/
+          cd lambda-layer
+          zip -r ../geo-framework-layer.zip .
+          cd ..
+          ls -lh geo-framework-layer.zip
+
+      - name: Build Lambda package (code only)
         run: |
           mkdir -p package
-          pip install -r requirements.txt -t package/
           cp app.py package/
           cp -r metrics package/
           cd package
@@ -53,18 +61,45 @@ jobs:
           cd ..
           ls -lh geo-framework.zip
 
-      - name: Upload to S3
+      - name: Upload Layer to S3
+        run: |
+          aws s3 cp geo-framework-layer.zip \
+            s3://geo-framework-deployments/geo-framework-layer-${{ github.sha }}.zip \
+            --region eu-central-1
+
+      - name: Upload Function Code to S3
         run: |
           aws s3 cp geo-framework.zip \
             s3://geo-framework-deployments/geo-framework-${{ github.sha }}.zip \
             --region eu-central-1
 
-      - name: Deploy Lambda
+      - name: Publish Lambda Layer
+        run: |
+          LAYER_VERSION=$(aws lambda publish-layer-version \
+            --layer-name geo-framework-dependencies \
+            --s3-bucket geo-framework-deployments \
+            --s3-key geo-framework-layer-${{ github.sha }}.zip \
+            --compatible-runtimes python3.13 \
+            --region eu-central-1 \
+            --query 'Version' \
+            --output text)
+          
+          echo "Layer version: $LAYER_VERSION"
+          echo "LAYER_ARN=arn:aws:lambda:eu-central-1:498747778884:layer:geo-framework-dependencies:$LAYER_VERSION" >> $GITHUB_ENV
+
+      - name: Deploy Lambda Function
         run: |
           aws lambda update-function-code \
             --function-name geo-framework-api \
             --s3-bucket geo-framework-deployments \
             --s3-key geo-framework-${{ github.sha }}.zip \
+            --region eu-central-1
+
+      - name: Attach Layer to Lambda
+        run: |
+          aws lambda update-function-configuration \
+            --function-name geo-framework-api \
+            --layers ${{ env.LAYER_ARN }} \
             --region eu-central-1
 
       - name: Wait for Lambda update
@@ -80,7 +115,6 @@ jobs:
           
           echo "Lambda last modified: $LAST_MODIFIED"
           
-          # Test invoke with test payload
           aws lambda invoke \
             --function-name geo-framework-api \
             --payload '{"test": true}' \
