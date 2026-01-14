@@ -1,4 +1,4 @@
-name: Deploy GEO Metrics Lambda
+name: Deploy GEO-FRAMEWORK Lambda
 
 on:
   push:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout GEO-FRAMEWORK
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -22,21 +22,21 @@ jobs:
         run: |
           pip install -r requirements.txt -t package
 
-      - name: Copy source code
+      - name: Copy GEO-FRAMEWORK source
         run: |
           cp app.py package/
           cp -r metrics package/
 
-      - name: Create deployment zip
+      - name: Build Lambda package
         run: |
           cd package
-          zip -r ../deployment.zip .
+          zip -r ../geo-framework.zip .
 
-      - name: Deploy to AWS Lambda
+      - name: Deploy GEO-FRAMEWORK to AWS Lambda
         uses: appleboy/lambda-action@v0.1.9
         with:
           aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws_region: ${{ secrets.AWS_REGION }}
           function_name: ${{ secrets.LAMBDA_FUNCTION_NAME }}
-          zip_file: deployment.zip
+          zip_file: geo-framework.zip
