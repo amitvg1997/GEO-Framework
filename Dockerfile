@@ -11,3 +11,4 @@ COPY metrics ./metrics
 
 # Lambda handler
 CMD [ "app.lambda_handler" ]
+
