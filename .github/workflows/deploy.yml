@@ -1,4 +1,4 @@
-name: Deploy GEO Framework Lambda
+name: Deploy GEO Framework Lambda (Container)
 
 on:
   push:
@@ -9,6 +9,13 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  AWS_REGION: eu-central-1
+  AWS_ACCOUNT_ID: "498747778884"
+  ECR_REPOSITORY: "geo-framework-api"
+  IMAGE_TAG: "${{ github.sha }}"
+  LAMBDA_FUNCTION_NAME: "geo-framework-api"
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -17,142 +24,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13"
-
-      - name: Validate requirements.txt
-        run: |
-          if [ ! -f requirements.txt ]; then
-            echo "ERROR: requirements.txt not found"
-            exit 1
-          fi
-
-      - name: Validate lambda_handler exists
-        run: |
-          if ! grep -q "def lambda_handler" app.py; then
-            echo "ERROR: lambda_handler function not found in app.py"
-            exit 1
-          fi
-
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::498747778884:role/GeoFrameworkGitHubOIDCRole
-          aws-region: eu-central-1
+          aws-region: ${{ env.AWS_REGION }}
 
-      - name: Build Lambda Layer
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
         run: |
-          mkdir -p lambda-layer/python/lib/python3.13/site-packages
-          
-          echo "Installing dependencies..."
-          pip install -r requirements.txt \
-            -t lambda-layer/python/lib/python3.13/site-packages/ \
-            --no-cache-dir
-          
-          echo "Cleaning up unnecessary files..."
-          cd lambda-layer/python/lib/python3.13/site-packages/
-          
-          find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-          find . -type d -name "tests" -exec rm -rf {} + 2>/dev/null || true
-          find . -type d -name "test" -exec rm -rf {} + 2>/dev/null || true
-          find . -type d -name "docs" -exec rm -rf {} + 2>/dev/null || true
-          find . -type f -name "*.pyc" -delete 2>/dev/null || true
-          find . -type f -name "*.pyo" -delete 2>/dev/null || true
-          
-          # Go back to root
-          cd ../../../../../
-          
-          echo "Layer size:"
-          du -sh lambda-layer
-          
-          cd lambda-layer
-          zip -r ../geo-framework-layer.zip . -x "*.git*"
-          cd ..
-          
-          echo "Zipped layer size:"
-          ls -lh geo-framework-layer.zip
+          docker build \
+            -t $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG \
+            .
 
-
-      - name: Build Lambda package (code only)
+      - name: Push Docker image to ECR
         run: |
-          mkdir -p package
-          cp app.py package/
-          cp -r metrics package/
-          cd package
-          zip -r ../geo-framework.zip . -x "*.git*" "*.pyc" "__pycache__/*"
-          cd ..
-          ls -lh geo-framework.zip
+          docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG
 
-      - name: Upload Layer to S3
-        run: |
-          aws s3 cp geo-framework-layer.zip \
-            s3://geo-framework-deployments/geo-framework-layer-${{ github.sha }}.zip \
-            --region eu-central-1
-
-      - name: Upload Function Code to S3
-        run: |
-          aws s3 cp geo-framework.zip \
-            s3://geo-framework-deployments/geo-framework-${{ github.sha }}.zip \
-            --region eu-central-1
-
-      - name: Publish Lambda Layer
-        run: |
-          LAYER_VERSION=$(aws lambda publish-layer-version \
-            --layer-name geo-framework-dependencies \
-            --content S3Bucket=geo-framework-deployments,S3Key=geo-framework-layer-${{ github.sha }}.zip \
-            --compatible-runtimes python3.13 \
-            --region eu-central-1 \
-            --query 'Version' \
-            --output text)
-          
-          echo "Layer version: $LAYER_VERSION"
-          echo "LAYER_ARN=arn:aws:lambda:eu-central-1:498747778884:layer:geo-framework-dependencies:$LAYER_VERSION" >> $GITHUB_ENV
-
-      - name: Deploy Lambda Function
+      - name: Update Lambda to use new image
         run: |
           aws lambda update-function-code \
-            --function-name geo-framework-api \
-            --s3-bucket geo-framework-deployments \
-            --s3-key geo-framework-${{ github.sha }}.zip \
-            --region eu-central-1
-
-      - name: Attach Layer to Lambda
-        run: |
-          aws lambda update-function-configuration \
-            --function-name geo-framework-api \
-            --layers ${{ env.LAYER_ARN }} \
-            --region eu-central-1
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --image-uri $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:$IMAGE_TAG \
+            --region $AWS_REGION
 
       - name: Wait for Lambda update
-        run: sleep 3
+        run: sleep 10
 
       - name: Verify deployment
         run: |
-          LAST_MODIFIED=$(aws lambda get-function-configuration \
-            --function-name geo-framework-api \
-            --query 'LastModified' \
-            --output text \
-            --region eu-central-1)
-          
-          echo "Lambda last modified: $LAST_MODIFIED"
-          
+          aws lambda get-function-configuration \
+            --function-name $LAMBDA_FUNCTION_NAME \
+            --region $AWS_REGION
+
           aws lambda invoke \
-            --function-name geo-framework-api \
+            --function-name $LAMBDA_FUNCTION_NAME \
             --payload '{"test": true}' \
             /tmp/response.json \
-            --region eu-central-1
-          
-          cat /tmp/response.json
+            --region $AWS_REGION
 
-      - name: Publish Lambda version
-        if: success()
-        run: |
-          VERSION=$(aws lambda publish-version \
-            --function-name geo-framework-api \
-            --query 'Version' \
-            --output text \
-            --region eu-central-1)
-          
-          echo "Published version: $VERSION"
+          cat /tmp/response.json
