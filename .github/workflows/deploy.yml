@@ -73,11 +73,17 @@ jobs:
             s3://geo-framework-deployments/geo-framework-${{ github.sha }}.zip \
             --region eu-central-1
 
+      - name: Upload Layer to S3
+        run: |
+          aws s3 cp geo-framework-layer.zip \
+            s3://geo-framework-deployments/geo-framework-layer-${{ github.sha }}.zip \
+            --region eu-central-1
+
       - name: Publish Lambda Layer
         run: |
           LAYER_VERSION=$(aws lambda publish-layer-version \
             --layer-name geo-framework-dependencies \
-            --zip-file fileb://geo-framework-layer.zip \
+            --content S3Bucket=geo-framework-deployments,S3Key=geo-framework-layer-${{ github.sha }}.zip \
             --compatible-runtimes python3.13 \
             --region eu-central-1 \
             --query 'Version' \
@@ -85,6 +91,7 @@ jobs:
           
           echo "Layer version: $LAYER_VERSION"
           echo "LAYER_ARN=arn:aws:lambda:eu-central-1:498747778884:layer:geo-framework-dependencies:$LAYER_VERSION" >> $GITHUB_ENV
+
 
 
       - name: Deploy Lambda Function
