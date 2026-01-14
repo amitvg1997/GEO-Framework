@@ -73,7 +73,7 @@ jobs:
             s3://geo-framework-deployments/geo-framework-${{ github.sha }}.zip \
             --region eu-central-1
 
-            - name: Publish Lambda Layer
+      - name: Publish Lambda Layer
         run: |
           LAYER_VERSION=$(aws lambda publish-layer-version \
             --layer-name geo-framework-dependencies \
