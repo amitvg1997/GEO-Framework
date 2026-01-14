@@ -1,0 +1,6 @@
+beautifulsoup4
+requests
+textstat
+spacy
+scikit-learn
+lxml
