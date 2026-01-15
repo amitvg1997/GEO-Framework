@@ -42,9 +42,18 @@ def lambda_handler(event, context):
     html = content
     if url:
         try:
-            resp = requests.get(url, timeout=10)
-            resp.raise_for_status()
-            html = resp.text
+            html = fetch_url(url)
+        except requests.HTTPError as e:
+            status = getattr(e.response, "status_code", None)
+            print(f"HTTP error fetching URL {url}: {e}")
+            if status == 403:
+                msg = (
+                    "The target site is blocking automated requests (HTTP 403). "
+                    "Try pasting the HTML content instead of using the URL."
+                )
+            else:
+                msg = f"Failed to fetch URL (HTTP {status})."
+            return _cors_response(400, {"error": msg})
         except Exception as e:
             print(f"Fetch error for URL {url}: {e}")
             return _cors_response(
@@ -57,7 +66,6 @@ def lambda_handler(event, context):
             400,
             {"error": "No content or URL provided"}
         )
-
 
     try:
         results = {}
@@ -101,3 +109,18 @@ def generate_recommendations(m):
     if m.get("faq_density", 0) == 0:
         rec.append("Add explicit Q&A sections for AI retrieval.")
     return rec
+
+
+def fetch_url(url, timeout=10):
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+            "Version/17.0 Safari/605.1.15"
+        ),
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9"
+    }
+    resp = requests.get(url, headers=headers, timeout=timeout, allow_redirects=True)
+    resp.raise_for_status()
+    return resp.text
