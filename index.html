@@ -290,20 +290,13 @@
         try {
           loadingEl.classList.add("active");
 
-          const params = new URLSearchParams();
-            if (content) params.append("content", content);
-            if (url) params.append("url", url);
-
-            await fetch(apiUrl, {
+          const response = await fetch(apiUrl, {
             method: "POST",
             headers: {
-                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
             },
             body: params.toString()
-            });
-
-
-          console.log("Response status:", response.status);
+          });
 
           let data;
           try {
@@ -320,8 +313,7 @@
             errorEl.textContent = data.error || "Server error occurred.";
             errorEl.classList.add("active");
             return;
-}
-
+          }
 
           renderResults(data);
         } catch (err) {
@@ -339,7 +331,6 @@
         resultsEl.classList.add("active");
         metricsContainer.innerHTML = "";
 
-        // Simple JSON dump; you can replace with richer cards
         const pre = document.createElement("pre");
         pre.textContent = JSON.stringify(data, null, 2);
         metricsContainer.appendChild(pre);
