@@ -1,4 +1,6 @@
 import json
+from urllib.parse import parse_qs
+
 from metrics.readability import readability_metrics
 from metrics.structure import structure_metrics
 from metrics.eat import eat_metrics
@@ -15,21 +17,24 @@ print("NLP model loaded successfully")
 
 
 def lambda_handler(event, context):
-    # Handle CORS preflight
-    if event.get("requestContext", {}).get("http", {}).get("method") == "OPTIONS":
+    # Handle CORS preflight (for safety, though UI will use simple POST)
+    method = event.get("requestContext", {}).get("http", {}).get("method", "")
+    if method == "OPTIONS":
         return _cors_response(200, {"message": "OK"})
 
-    # Parse body safely
-    body = event.get("body")
-    if isinstance(body, str):
+    raw_body = event.get("body") or ""
+    body = {}
+
+    # Try JSON first
+    if isinstance(raw_body, str) and raw_body:
         try:
-            body = json.loads(body)
+            body = json.loads(raw_body)
         except json.JSONDecodeError:
-            body = {}
-    elif isinstance(body, dict):
-        pass
-    else:
-        body = {}
+            # Fallback: form-encoded (application/x-www-form-urlencoded)
+            parsed = parse_qs(raw_body)
+            body = {k: v[0] for k, v in parsed.items()}
+    elif isinstance(raw_body, dict):
+        body = raw_body
 
     content = body.get("content")
     url = body.get("url")
@@ -50,26 +55,32 @@ def lambda_handler(event, context):
             {"error": "No content or URL provided"}
         )
 
-    results = {}
-    results.update(readability_metrics(html))
-    results.update(structure_metrics(html))
-    results.update(eat_metrics(html, url))
-    results.update(entity_metrics(html))
-    results.update(schema_metrics(html))
-    results.update(comprehensiveness_metrics(html))
-    results["recommendations"] = generate_recommendations(results)
+    try:
+        results = {}
+        results.update(readability_metrics(html))
+        results.update(structure_metrics(html))
+        results.update(eat_metrics(html, url))
+        results.update(entity_metrics(html))
+        results.update(schema_metrics(html))
+        results.update(comprehensiveness_metrics(html))
+        results["recommendations"] = generate_recommendations(results)
 
-    return _cors_response(200, results)
+        return _cors_response(200, results)
+    except Exception as e:
+        print(f"ERROR processing request: {str(e)}")
+        return _cors_response(500, {"error": f"Processing failed: {str(e)}"})
 
 
 def _cors_response(status, body_dict):
+    # Allow your S3 UI origin; you can loosen to "*" while testing
     return {
         "statusCode": status,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Origin": "http://geo-framework-ui.s3-website.eu-central-1.amazonaws.com",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-            "Access-Control-Allow-Headers": "*"
+            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Max-Age": "86400"
         },
         "body": json.dumps(body_dict)
     }

@@ -264,138 +264,92 @@
     </div>
 
     <script>
-        // Replace with your actual Lambda function URL or API Gateway endpoint
-        const LAMBDA_FUNCTION_URL = "https://k5ylj22gv3emlwsxzb2spjxwwy0iluwb.lambda-url.eu-central-1.on.aws/";
+  const apiUrl = "https://k5ylj22gv3emlwsxzb2spjxwwy0iluwb.lambda-url.eu-central-1.on.aws/";
 
-        async function analyzeURL() {
-            const url = document.getElementById("url").value.trim();
-            if (!url) {
-                showError("Please enter a URL");
-                return;
-            }
+  async function analyzeContent() {
+    const contentInput = document.getElementById("contentInput");
+    const urlInput = document.getElementById("urlInput");
+    const resultsContainer = document.getElementById("resultsContainer");
+    const loadingIndicator = document.getElementById("loadingIndicator");
+    const errorContainer = document.getElementById("errorContainer");
 
-            await analyze({ url, content: null });
-        }
+    const content = contentInput.value.trim();
+    const url = urlInput.value.trim();
 
-        async function analyzeContent() {
-            const content = document.getElementById("content").value.trim();
-            if (!content) {
-                showError("Please paste HTML content");
-                return;
-            }
+    errorContainer.textContent = "";
+    resultsContainer.textContent = "";
 
-            await analyze({ url: null, content });
-        }
+    if (!content && !url) {
+      errorContainer.textContent = "Please enter content or a URL.";
+      return;
+    }
 
-        async function analyze(payload) {
-            showLoading(true);
-            hideError();
+    // Build form-encoded payload to avoid CORS preflight
+    const params = new URLSearchParams();
+    if (content) params.append("content", content);
+    if (url) params.append("url", url);
 
-            try {
-                // For direct Lambda invocation (if using Lambda URL)
-                const response = await fetch(LAMBDA_FUNCTION_URL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(payload),
-                });
+    try {
+      loadingIndicator.style.display = "block";
 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+        },
+        body: params.toString()
+      });
 
-                const data = await response.json();
-                displayResults(data);
-            } catch (error) {
-                showError(`Error: ${error.message}`);
-                console.error("Full error:", error);
-            } finally {
-                showLoading(false);
-            }
-        }
+      console.log("Response status:", response.status);
+      console.log("Response headers:", Object.fromEntries(response.headers.entries()));
 
-        function displayResults(data) {
-            const container = document.getElementById("metricsContainer");
-            container.innerHTML = "";
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.error("Failed to parse JSON:", e);
+        errorContainer.textContent = "Failed to parse server response.";
+        return;
+      }
 
-            // Parse response if it's a string
-            let results = data;
-            if (typeof data === "string") {
-                results = JSON.parse(data);
-            }
+      if (!response.ok) {
+        console.error("Server error response:", data);
+        errorContainer.textContent = data.error || "Server error occurred.";
+        return;
+      }
 
-            // If Lambda returns {body: "..."}, parse the body
-            if (results.body && typeof results.body === "string") {
-                results = JSON.parse(results.body);
-            }
+      renderResults(data);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      errorContainer.textContent = "Load failed: " + err.message;
+    } finally {
+      loadingIndicator.style.display = "none";
+    }
+  }
 
-            // Display metrics
-            const metrics = [
-                { key: "flesch_kincaid", label: "Flesch-Kincaid Grade" },
-                { key: "word_count", label: "Word Count" },
-                { key: "avg_sentence_length", label: "Avg Sentence Length" },
-                { key: "h1_count", label: "H1 Headers" },
-                { key: "h2_count", label: "H2 Headers" },
-                { key: "h3_count", label: "H3 Headers" },
-                { key: "headers_to_text_ratio", label: "Headers to Text Ratio" },
-                { key: "paragraph_length_variance", label: "Paragraph Variance" },
-                { key: "faq_density", label: "FAQ Density" },
-                { key: "citation_count", label: "External Citations" },
-                { key: "author_present", label: "Author Mentioned" },
-                { key: "date_present", label: "Date Mentioned" },
-                { key: "unique_entity_count", label: "Unique Entities" },
-                { key: "schema_score", label: "Schema.org Score" },
-                { key: "topic_coverage_score", label: "Topic Coverage" },
-            ];
+  function renderResults(data) {
+    const resultsContainer = document.getElementById("resultsContainer");
+    resultsContainer.innerHTML = "";
 
-            metrics.forEach(({ key, label }) => {
-                if (key in results) {
-                    const value = results[key];
-                    const displayValue = typeof value === "boolean" ? (value ? "✓ Yes" : "✗ No") : value.toFixed ? value.toFixed(2) : value;
-                    container.innerHTML += `
-                        <div class="metric-card">
-                            <h3>${label}</h3>
-                            <div class="metric-value">${displayValue}</div>
-                        </div>
-                    `;
-                }
-            });
+    const pre = document.createElement("pre");
+    pre.textContent = JSON.stringify(data, null, 2);
+    resultsContainer.appendChild(pre);
 
-            // Display recommendations
-            if (results.recommendations && results.recommendations.length > 0) {
-                container.innerHTML += `
-                    <div class="recommendations">
-                        <h3>💡 Recommendations</h3>
-                        <ul>
-                            ${results.recommendations.map(rec => `<li>${rec}</li>`).join("")}
-                        </ul>
-                    </div>
-                `;
-            }
+    // If you already have a richer dashboard rendering, call it here instead
+    // e.g., update individual metric cards from `data`
+  }
 
-            document.getElementById("results").classList.add("active");
-        }
+  // Wire up button
+  document.addEventListener("DOMContentLoaded", () => {
+    const analyzeButton = document.getElementById("analyzeButton");
+    if (analyzeButton) {
+      analyzeButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        analyzeContent();
+      });
+    }
+  });
+</script>
 
-        function showLoading(show) {
-            const loading = document.getElementById("loading");
-            if (show) {
-                loading.classList.add("active");
-            } else {
-                loading.classList.remove("active");
-            }
-        }
-
-        function showError(message) {
-            const error = document.getElementById("error");
-            error.textContent = message;
-            error.classList.add("active");
-        }
-
-        function hideError() {
-            const error = document.getElementById("error");
-            error.classList.remove("active");
-        }
-    </script>
 </body>
 </html>
