@@ -238,7 +238,7 @@
                     <label for="url">Enter URL:</label>
                     <input type="text" id="url" placeholder="https://example.com" />
                 </div>
-                <button onclick="analyzeURL()">Analyze URL</button>
+                <button id="analyzeUrlButton">Analyze URL</button>
             </div>
 
             <div class="panel">
@@ -247,7 +247,7 @@
                     <label for="content">Paste HTML Content:</label>
                     <textarea id="content" placeholder="Paste your HTML content here..."></textarea>
                 </div>
-                <button onclick="analyzeContent()">Analyze Content</button>
+                <button id="analyzeContentButton">Analyze Content</button>
             </div>
         </div>
 
@@ -264,93 +264,106 @@
     </div>
 
     <script>
-  const apiUrl = "https://k5ylj22gv3emlwsxzb2spjxwwy0iluwb.lambda-url.eu-central-1.on.aws/";
+      const apiUrl = "https://k5ylj22gv3emlwsxzb2spjxwwy0iluwb.lambda-url.eu-central-1.on.aws/";
 
-  async function analyzeContent() {
-    const contentInput = document.getElementById("contentInput");
-    const urlInput = document.getElementById("urlInput");
-    const resultsContainer = document.getElementById("resultsContainer");
-    const loadingIndicator = document.getElementById("loadingIndicator");
-    const errorContainer = document.getElementById("errorContainer");
+      async function callApi({ content, url }) {
+        const errorEl = document.getElementById("error");
+        const loadingEl = document.getElementById("loading");
+        const resultsEl = document.getElementById("results");
+        const metricsContainer = document.getElementById("metricsContainer");
 
-    const content = contentInput.value.trim();
-    const url = urlInput.value.trim();
+        errorEl.classList.remove("active");
+        errorEl.textContent = "";
+        resultsEl.classList.remove("active");
+        metricsContainer.innerHTML = "";
 
-    errorContainer.textContent = "";
-    resultsContainer.textContent = "";
+        if (!content && !url) {
+          errorEl.textContent = "Please enter content or a URL.";
+          errorEl.classList.add("active");
+          return;
+        }
 
-    if (!content && !url) {
-      errorContainer.textContent = "Please enter content or a URL.";
-      return;
-    }
+        const params = new URLSearchParams();
+        if (content) params.append("content", content);
+        if (url) params.append("url", url);
 
-    // Build form-encoded payload to avoid CORS preflight
-    const params = new URLSearchParams();
-    if (content) params.append("content", content);
-    if (url) params.append("url", url);
+        try {
+          loadingEl.classList.add("active");
 
-    try {
-      loadingIndicator.style.display = "block";
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
+            },
+            body: params.toString()
+          });
 
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8"
-        },
-        body: params.toString()
-      });
+          console.log("Response status:", response.status);
 
-      console.log("Response status:", response.status);
-      console.log("Response headers:", Object.fromEntries(response.headers.entries()));
+          let data;
+          try {
+            data = await response.json();
+          } catch (e) {
+            console.error("Failed to parse JSON:", e);
+            errorEl.textContent = "Failed to parse server response.";
+            errorEl.classList.add("active");
+            return;
+          }
 
-      let data;
-      try {
-        data = await response.json();
-      } catch (e) {
-        console.error("Failed to parse JSON:", e);
-        errorContainer.textContent = "Failed to parse server response.";
-        return;
+          if (!response.ok) {
+            console.error("Server error:", data);
+            errorEl.textContent = data.error || "Server error occurred.";
+            errorEl.classList.add("active");
+            return;
+          }
+
+          renderResults(data);
+        } catch (err) {
+          console.error("Fetch error:", err);
+          errorEl.textContent = "Load failed: " + err.message;
+          errorEl.classList.add("active");
+        } finally {
+          loadingEl.classList.remove("active");
+        }
       }
 
-      if (!response.ok) {
-        console.error("Server error response:", data);
-        errorContainer.textContent = data.error || "Server error occurred.";
-        return;
+      function renderResults(data) {
+        const resultsEl = document.getElementById("results");
+        const metricsContainer = document.getElementById("metricsContainer");
+        resultsEl.classList.add("active");
+        metricsContainer.innerHTML = "";
+
+        // Simple JSON dump; you can replace with richer cards
+        const pre = document.createElement("pre");
+        pre.textContent = JSON.stringify(data, null, 2);
+        metricsContainer.appendChild(pre);
       }
 
-      renderResults(data);
-    } catch (err) {
-      console.error("Fetch error:", err);
-      errorContainer.textContent = "Load failed: " + err.message;
-    } finally {
-      loadingIndicator.style.display = "none";
-    }
-  }
+      function analyzeURL() {
+        const urlVal = document.getElementById("url").value.trim();
+        callApi({ content: "", url: urlVal });
+      }
 
-  function renderResults(data) {
-    const resultsContainer = document.getElementById("resultsContainer");
-    resultsContainer.innerHTML = "";
+      function analyzeContent() {
+        const contentVal = document.getElementById("content").value.trim();
+        callApi({ content: contentVal, url: "" });
+      }
 
-    const pre = document.createElement("pre");
-    pre.textContent = JSON.stringify(data, null, 2);
-    resultsContainer.appendChild(pre);
+      document.addEventListener("DOMContentLoaded", () => {
+        document
+          .getElementById("analyzeUrlButton")
+          .addEventListener("click", (e) => {
+            e.preventDefault();
+            analyzeURL();
+          });
 
-    // If you already have a richer dashboard rendering, call it here instead
-    // e.g., update individual metric cards from `data`
-  }
-
-  // Wire up button
-  document.addEventListener("DOMContentLoaded", () => {
-    const analyzeButton = document.getElementById("analyzeButton");
-    if (analyzeButton) {
-      analyzeButton.addEventListener("click", (e) => {
-        e.preventDefault();
-        analyzeContent();
+        document
+          .getElementById("analyzeContentButton")
+          .addEventListener("click", (e) => {
+            e.preventDefault();
+            analyzeContent();
+          });
       });
-    }
-  });
-</script>
-
+    </script>
 </body>
 </html>
-
