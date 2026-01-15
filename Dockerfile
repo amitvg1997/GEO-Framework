@@ -4,11 +4,11 @@ COPY requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Create nltk_data directory and download cmudict into it
+# Download NLTK data
 RUN mkdir -p /var/task/nltk_data && \
     python -c "import nltk; nltk.data.path.insert(0, '/var/task/nltk_data'); nltk.download('cmudict', download_dir='/var/task/nltk_data', quiet=True)"
 
-# Download spacy model
+# Download spacy model (small version only)
 RUN python -m spacy download en_core_web_sm
 
 # Copy application code
