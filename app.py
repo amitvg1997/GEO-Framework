@@ -72,7 +72,7 @@ def lambda_handler(event, context):
 
 
 def _cors_response(status, body_dict):
-    # Allow your S3 UI origin; you can loosen to "*" while testing
+    # Allow your S3 UI origin; adjust if your website URL changes
     return {
         "statusCode": status,
         "headers": {
