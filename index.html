@@ -316,11 +316,12 @@
           }
 
           if (!response.ok) {
-            console.error("Server error:", data);
+            console.error("Server error response:", data);
             errorEl.textContent = data.error || "Server error occurred.";
             errorEl.classList.add("active");
             return;
-          }
+}
+
 
           renderResults(data);
         } catch (err) {
