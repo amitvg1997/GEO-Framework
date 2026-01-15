@@ -42,8 +42,11 @@ def lambda_handler(event, context):
     html = content
     if url:
         try:
-            html = requests.get(url, timeout=10).text
+            resp = requests.get(url, timeout=10)
+            resp.raise_for_status()
+            html = resp.text
         except Exception as e:
+            print(f"Fetch error for URL {url}: {e}")
             return _cors_response(
                 400,
                 {"error": f"Failed to fetch URL: {str(e)}"}
@@ -54,6 +57,7 @@ def lambda_handler(event, context):
             400,
             {"error": "No content or URL provided"}
         )
+
 
     try:
         results = {}
