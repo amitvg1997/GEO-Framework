@@ -5,7 +5,14 @@ from metrics.eat import eat_metrics
 from metrics.entities import entity_metrics
 from metrics.schema import schema_metrics
 from metrics.comprehensiveness import comprehensiveness_metrics
+from metrics.nlp_loader import get_nlp_model
 import requests
+
+# Pre-load spaCy model at Lambda cold start
+print("Initializing NLP model...")
+get_nlp_model("en_core_web_sm")
+print("NLP model loaded successfully")
+
 
 def lambda_handler(event, context):
     # Handle CORS preflight
@@ -60,9 +67,9 @@ def _cors_response(status, body_dict):
         "statusCode": status,
         "headers": {
             "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "http://geo-framework-ui.s3-website-eu-central-1.amazonaws.com",
+            "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type"
+            "Access-Control-Allow-Headers": "*"
         },
         "body": json.dumps(body_dict)
     }
