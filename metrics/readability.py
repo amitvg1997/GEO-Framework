@@ -1,16 +1,15 @@
 import textstat
 from bs4 import BeautifulSoup
-import nltk
-import os
+from trafilatura import extract
 
-# Point NLTK to the bundled data directory
-nltk_data_path = "/var/task/nltk_data"
-if os.path.exists(nltk_data_path):
-    nltk.data.path.insert(0, nltk_data_path)
+def readability_metrics(html, url=None):
+    # Extract main content
+    text = extract(html, include_comments=False, include_tables=False)
+    if not text:
+        # fallback to full page
+        soup = BeautifulSoup(html, "lxml")
+        text = soup.get_text(" ")
 
-def readability_metrics(html):
-    soup = BeautifulSoup(html, "lxml")
-    text = soup.get_text(" ")
     return {
         "flesch_kincaid": textstat.flesch_kincaid_grade(text),
         "word_count": textstat.lexicon_count(text),
