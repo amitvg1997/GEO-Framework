@@ -2,7 +2,6 @@ from bs4 import BeautifulSoup
 import numpy as np
 from numpy.linalg import norm
 from trafilatura import extract
-from newspaper import Article
 from sentence_transformers import SentenceTransformer
 
 # -------------------------------
@@ -49,13 +48,6 @@ def extract_main_content(html, url=None):
     text = extract(html, include_comments=False, include_tables=False)
     if text:
         return text
-
-    if url:
-        article = Article(url)
-        article.set_html(html)
-        article.parse()
-        if article.text:
-            return article.text
 
     soup = BeautifulSoup(html, "lxml")
     return soup.get_text(" ")

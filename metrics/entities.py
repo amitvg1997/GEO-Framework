@@ -3,7 +3,7 @@ from trafilatura import extract
 from metrics.nlp_loader import get_nlp_model
 
 def entity_metrics(html, url=None):
-    nlp_model = get_nlp_model("en_core_web_lg")  # better model
+    nlp_model = get_nlp_model("en_core_web_md") 
 
     # Extract main content
     text = extract(html, include_comments=False, include_tables=False)

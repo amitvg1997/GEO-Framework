@@ -1,8 +1,6 @@
 import re
 from bs4 import BeautifulSoup
 from trafilatura import extract
-from newspaper import Article
-
 
 def extract_main_content(html, url=None):
     """
@@ -14,17 +12,6 @@ def extract_main_content(html, url=None):
     text = extract(html, include_comments=False, include_tables=False)
     if text:
         return text, None
-
-    # 2️⃣ Fallback to newspaper3k (needs URL)
-    if not url:
-        return None, None
-
-    article = Article(url)
-    article.set_html(html)
-    article.parse()
-
-    if article.text:
-        return article.text, article.html
 
     return None, None
 

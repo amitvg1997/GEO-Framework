@@ -6,5 +6,4 @@ spacy
 scikit-learn
 numpy
 trafilatura
-newspaper3k
 sentence-transformers

@@ -1,20 +1,12 @@
 from bs4 import BeautifulSoup
 import numpy as np
 from trafilatura import extract
-from newspaper import Article
 
 def extract_main_content(html, url=None):
     """Return main article text and HTML block using trafilatura, fallback to newspaper3k"""
     text = extract(html, include_comments=False, include_tables=False)
     if text:
         return text, None  # no need for HTML parsing
-
-    if url:
-        article = Article(url)
-        article.set_html(html)
-        article.parse()
-        if article.text:
-            return article.text, article.html
 
     return None, None
 
