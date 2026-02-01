@@ -6,7 +6,7 @@ from metrics.structure import structure_metrics
 from metrics.eat import eat_metrics
 from metrics.entities import entity_metrics
 from metrics.schema import schema_metrics
-from metrics.comprehensiveness import comprehensiveness_metrics
+from metrics.comprehensiveness import semantic_topic_coverage
 from metrics.nlp_loader import get_nlp_model
 import requests
 
