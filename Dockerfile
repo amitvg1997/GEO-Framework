@@ -8,8 +8,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN mkdir -p /var/task/nltk_data && \
     python -c "import nltk; nltk.data.path.insert(0, '/var/task/nltk_data'); nltk.download('cmudict', download_dir='/var/task/nltk_data', quiet=True)"
 
-# Download spacy model (small version only)
-RUN python -m spacy download en_core_web_sm
+# Download spacy model 
+RUN python -m spacy download en_core_web_lg
 
 # Copy application code
 COPY app.py ./app.py
