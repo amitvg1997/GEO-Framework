@@ -3,7 +3,7 @@ import os
 
 _nlp_model = None
 
-def get_nlp_model(model_name="en_core_web_lg"):
+def get_nlp_model(model_name="en_core_web_md"):
     """Load spaCy model - should already be in image."""
     global _nlp_model
     

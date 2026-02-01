@@ -12,7 +12,7 @@ import requests
 
 # Pre-load spaCy model at Lambda cold start
 print("Initializing NLP model...")
-get_nlp_model("en_core_web_lg")
+get_nlp_model("en_core_web_md")
 print("NLP model loaded successfully")
 
 
