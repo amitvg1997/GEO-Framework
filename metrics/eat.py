@@ -29,7 +29,7 @@ def extract_main_content(html, url=None):
     return None, None
 
 
-def eat_metrics_ai(html, url=None):
+def eat_metrics(html, url=None):
     text, extracted_html = extract_main_content(html, url)
 
     if not text:
