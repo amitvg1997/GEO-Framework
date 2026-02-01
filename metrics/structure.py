@@ -1,17 +1,46 @@
 from bs4 import BeautifulSoup
 import numpy as np
+from trafilatura import extract
+from newspaper import Article
 
-def structure_metrics(html):
-    soup = BeautifulSoup(html, "lxml")
-    text = soup.get_text(" ")
+def extract_main_content(html, url=None):
+    """Return main article text and HTML block using trafilatura, fallback to newspaper3k"""
+    text = extract(html, include_comments=False, include_tables=False)
+    if text:
+        return text, None  # no need for HTML parsing
+
+    if url:
+        article = Article(url)
+        article.set_html(html)
+        article.parse()
+        if article.text:
+            return article.text, article.html
+
+    return None, None
+
+def structure_metrics(html, url=None):
+    text, extracted_html = extract_main_content(html, url)
+
+    # fallback if extraction fails
+    if not text:
+        soup = BeautifulSoup(html, "lxml")
+        main_soup = soup
+        text = soup.get_text(" ")
+    else:
+        # if trafilatura returned HTML block, parse it; else use full soup for headers
+        if extracted_html:
+            main_soup = BeautifulSoup(extracted_html, "lxml")
+        else:
+            main_soup = BeautifulSoup("<div>" + text + "</div>", "lxml")
+
     words = len(text.split())
 
-    h1 = len(soup.find_all("h1"))
-    h2 = len(soup.find_all("h2"))
-    h3 = len(soup.find_all("h3"))
-    p_lengths = [len(p.get_text().split()) for p in soup.find_all("p")]
+    h1 = len(main_soup.find_all("h1"))
+    h2 = len(main_soup.find_all("h2"))
+    h3 = len(main_soup.find_all("h3"))
+    p_lengths = [len(p.get_text().split()) for p in main_soup.find_all("p")]
 
-    faq = sum(1 for p in soup.find_all("p") if p.get_text().strip().endswith("?"))
+    faq = sum(1 for p in main_soup.find_all("p") if p.get_text().strip().endswith("?"))
 
     return {
         "h1_count": h1,
