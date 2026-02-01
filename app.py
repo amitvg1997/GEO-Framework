@@ -9,6 +9,13 @@ from metrics.schema import schema_metrics
 from metrics.comprehensiveness import semantic_topic_coverage
 from metrics.nlp_loader import get_nlp_model
 import requests
+import os
+
+os.environ["HOME"] = "/tmp"
+os.environ["TMPDIR"] = "/tmp"
+os.environ["HF_HOME"] = "/tmp/huggingface"
+os.environ["TRANSFORMERS_CACHE"] = "/tmp/transformers"
+os.environ["NLTK_DATA"] = "/var/task/nltk_data"
 
 # Pre-load spaCy model at Lambda cold start
 print("Initializing NLP model...")
