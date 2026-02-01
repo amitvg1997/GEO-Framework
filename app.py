@@ -83,7 +83,7 @@ def lambda_handler(event, context):
         results.update(eat_metrics(html, url))
         results.update(entity_metrics(html))
         results.update(schema_metrics(html))
-        results.update(comprehensiveness_metrics(html))
+        results.update(semantic_topic_coverage(html))
         results["recommendations"] = generate_recommendations(results)
 
         return _cors_response(200, results)
