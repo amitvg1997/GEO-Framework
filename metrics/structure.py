@@ -3,8 +3,8 @@ import numpy as np
 from trafilatura import extract
 
 def extract_main_content(html, url=None):
-    """Return main article text and HTML block using trafilatura, fallback to newspaper3k"""
-    text = extract(html, include_comments=False, include_tables=False)
+    """Return main article text and HTML block using trafilatura"""
+    text = extract(html, include_comments=False, include_tables=False, include_formatting=True)
     if text:
         return text, None  # no need for HTML parsing
 
@@ -19,11 +19,12 @@ def structure_metrics(html, url=None):
         main_soup = soup
         text = soup.get_text(" ")
     else:
-        # if trafilatura returned HTML block, parse it; else use full soup for headers
+        # if trafilatura returned an HTML block, parse it; if it returned plain text,
+        # parse the original HTML so we preserve headings and paragraph tags.
         if extracted_html:
             main_soup = BeautifulSoup(extracted_html, "lxml")
         else:
-            main_soup = BeautifulSoup("<div>" + text + "</div>", "lxml")
+            main_soup = BeautifulSoup(html, "lxml")
 
     words = len(text.split())
 
