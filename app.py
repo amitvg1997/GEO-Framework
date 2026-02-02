@@ -1,5 +1,4 @@
 import os
-
 os.environ["HOME"] = "/tmp"
 os.environ["TMPDIR"] = "/tmp"
 os.environ["HF_HOME"] = "/tmp/huggingface"
@@ -18,7 +17,6 @@ from metrics.comprehensiveness import semantic_topic_coverage
 from metrics.nlp_loader import get_nlp_model
 import requests
 
-
 # Pre-load spaCy model at Lambda cold start
 print("Initializing NLP model...")
 get_nlp_model("en_core_web_md")
@@ -26,7 +24,7 @@ print("NLP model loaded successfully")
 
 
 def lambda_handler(event, context):
-    # Handle CORS preflight (for safety, though UI will use simple POST)
+    # Handle CORS preflight
     method = event.get("requestContext", {}).get("http", {}).get("method", "")
     if method == "OPTIONS":
         return _cors_response(200, {"message": "OK"})
@@ -39,7 +37,6 @@ def lambda_handler(event, context):
         try:
             body = json.loads(raw_body)
         except json.JSONDecodeError:
-            # Fallback: form-encoded (application/x-www-form-urlencoded)
             parsed = parse_qs(raw_body)
             body = {k: v[0] for k, v in parsed.items()}
     elif isinstance(raw_body, dict):
@@ -49,51 +46,48 @@ def lambda_handler(event, context):
     url = body.get("url")
 
     html = content
+    is_content_only = bool(content and not url)
+
     if url:
         try:
             html = fetch_url(url)
         except requests.HTTPError as e:
             status = getattr(e.response, "status_code", None)
-            print(f"HTTP error fetching URL {url}: {e}")
-            if status == 403:
-                msg = (
-                    "The target site is blocking automated requests (HTTP 403). "
-                    "Try pasting the HTML content instead of using the URL."
-                )
-            else:
-                msg = f"Failed to fetch URL (HTTP {status})."
+            msg = (
+                "The target site is blocking automated requests (HTTP 403). "
+                "Try pasting the HTML content instead of using the URL."
+                if status == 403 else f"Failed to fetch URL (HTTP {status})."
+            )
             return _cors_response(400, {"error": msg})
         except Exception as e:
-            print(f"Fetch error for URL {url}: {e}")
-            return _cors_response(
-                400,
-                {"error": f"Failed to fetch URL: {str(e)}"}
-            )
+            return _cors_response(400, {"error": f"Failed to fetch URL: {str(e)}"})
 
     if not html:
-        return _cors_response(
-            400,
-            {"error": "No content or URL provided"}
-        )
+        return _cors_response(400, {"error": "No content or URL provided"})
 
     try:
         results = {}
+        # Content metrics always applied
         results.update(readability_metrics(html))
-        results.update(structure_metrics(html))
-        results.update(eat_metrics(html, url))
         results.update(entity_metrics(html))
-        results.update(schema_metrics(html))
         results.update(semantic_topic_coverage(html))
-        results["recommendations"] = generate_recommendations(results)
 
+        # Only include HTML/URL-specific metrics if URL provided
+        if not is_content_only:
+            results.update(structure_metrics(html))
+            results.update(eat_metrics(html, url))
+            results.update(schema_metrics(html))
+            results["url"] = url
+
+        results["recommendations"] = generate_recommendations(results)
         return _cors_response(200, results)
+
     except Exception as e:
         print(f"ERROR processing request: {str(e)}")
         return _cors_response(500, {"error": f"Processing failed: {str(e)}"})
 
 
 def _cors_response(status, body_dict):
-    # Allow your S3 UI origin; adjust if your website URL changes
     return {
         "statusCode": status,
         "headers": {
