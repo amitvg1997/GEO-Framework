@@ -127,3 +127,4 @@ def fetch_url(url, timeout=10):
     resp = requests.get(url, headers=headers, timeout=timeout, allow_redirects=True)
     resp.raise_for_status()
     return resp.text
+    
